@@ -1,0 +1,16 @@
+Pet-проект/
+├── mushrooms_model_baseline/
+│   ├── config.json
+│   ├── metadata.json
+│   ├── model.safetensors
+│   └── preprocessor_config.json
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── models.py
+│   ├── services.py
+│   └── config.py
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── README.md

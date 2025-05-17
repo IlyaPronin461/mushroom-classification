@@ -1,0 +1,12 @@
+#version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mushrooms_model_baseline:/app/mushrooms_model_baseline
+    environment:
+      - MODEL_PATH=/app/mushrooms_model_baseline
+    restart: unless-stopped
