@@ -1,12 +1,9 @@
-#version: '3.8'
-
 services:
   web:
     build: .
+    volumes:
+      - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
     ports:
       - "8000:8000"
-    volumes:
-      - ./mushrooms_model_baseline:/app/mushrooms_model_baseline
-    environment:
-      - MODEL_PATH=/app/mushrooms_model_baseline
     restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000

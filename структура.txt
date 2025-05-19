@@ -1,16 +1,15 @@
 Pet-проект/
-├── mushrooms_model_baseline/
-│   ├── config.json
-│   ├── metadata.json
-│   ├── model.safetensors
-│   └── preprocessor_config.json
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
 │   ├── models.py
+│   ├── telegram_bot.py
 │   ├── services.py
+│   ├── __main__.py
 │   └── config.py
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
+├── telegram_bot_token.txt
+├── setup.py
 └── README.md
