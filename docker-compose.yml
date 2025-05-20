@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
+      - ./mushroom_photo:/app/mushroom_photo
     ports:
       - "8000:8000"
     restart: unless-stopped
