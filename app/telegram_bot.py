@@ -5,6 +5,7 @@ from PIL import Image
 import io
 import tempfile
 from app.services import MushroomClassifier
+from app.config import settings, logger
 import asyncio
 
 
@@ -25,11 +26,10 @@ class TelegramBot:
     async def handle_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await update.message.reply_text("Обрабатываю изображение...")
-
             photo_file = await update.message.photo[-1].get_file()
             photo_bytes = await photo_file.download_as_bytearray()
-
             image = Image.open(io.BytesIO(photo_bytes))
+
             if image.mode != "RGB":
                 image = image.convert("RGB")
 
@@ -39,9 +39,16 @@ class TelegramBot:
 
                 response = "Топ 5 предсказаний:\n"
                 for i, pred in enumerate(predictions, 1):
-                    response += f"{i}. {pred['class_name']} - {pred['confidence']:.2f}%\n"
+                    class_name = pred['class_name']
+                    description = settings.mushroom_descriptions.get(
+                        class_name,
+                        f"{class_name}. Информация о съедобности отсутствует"
+                    )
+                    response += f"{i}. {description} - {pred['confidence']:.2f}%\n"
 
+                response += f"\nP.S. Бот может ошибаться!!! Просьба думать своей головой."
                 await update.message.reply_text(response)
+
         except Exception as e:
             self.logger.error(f"Ошибка обработки фото: {str(e)}", exc_info=True)
             await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
