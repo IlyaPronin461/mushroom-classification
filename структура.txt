@@ -1,4 +1,4 @@
-Pet-проект/
+mushroom-classification/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
@@ -7,6 +7,11 @@ Pet-проект/
 │   ├── services.py
 │   ├── __main__.py
 │   └── config.py
+├── mushroom_photo/
+│   ├── Белый гриб.jpg
+│   ├── Бокальчик гладкий.jpg
+│   ├── ...
+│   └── Эверния сливовая.jpg
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml

@@ -15,7 +15,7 @@ from pathlib import Path
 app = FastAPI(
     title="Mushroom Classification API",
     description="API для классификации грибов по изображениям",
-    version="1.0.0"
+    version="1.0.1"
 )
 
 

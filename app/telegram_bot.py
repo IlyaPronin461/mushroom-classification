@@ -180,15 +180,9 @@ class TelegramBot:
             # Отправляем фото гриба
             if mushroom_name in self.mushroom_images:
                 photo_path = self.mushroom_images[mushroom_name]
-                description = settings.mushroom_descriptions.get(
-                    mushroom_name,
-                    f"{mushroom_name.capitalize()}. Описание отсутствует."
-                )
 
                 caption = (
                     f"🍄 <b>{mushroom_name.capitalize()}</b>\n\n"
-                    f"{description}\n\n"
-                    "Для нового поиска используйте /start"
                 )
 
                 try:
@@ -204,7 +198,6 @@ class TelegramBot:
                     self.logger.error(f"Ошибка при отправке фото: {str(e)}")
                     await context.bot.send_message(
                         chat_id=result.from_user.id,
-                        text=f"🍄 <b>{mushroom_name.capitalize()}</b>\n\n{description}",
                         parse_mode=ParseMode.HTML
                     )
             else:
@@ -298,33 +291,44 @@ class TelegramBot:
                     )
                     return
 
-                # Формируем подсказки
-                suggestions = "\n".join([f"▪️ {name.capitalize()}" for name in matches])
-                full_message = (
+                # Формируем кнопки для подсказок
+                buttons = []
+                for name in matches:
+                    display_name = name.capitalize()
+                    buttons.append([InlineKeyboardButton(display_name, callback_data=f"select_{name}")])
+
+                # Добавляем кнопку "Назад"
+                buttons.append([InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')])
+
+                reply_markup = InlineKeyboardMarkup(buttons)
+
+                # Отправляем сообщение с кнопками
+                response = (
                     f"🔍 <b>Возможные варианты:</b>\n\n"
-                    f"{suggestions}\n\n"
-                    f"Продолжайте вводить название для уточнения или выберите один из вариантов."
+                    "Выберите нужный гриб из списка ниже:"
                 )
 
-                # Отправляем/обновляем сообщение с подсказками
                 if 'last_suggestion_msg_id' in context.user_data:
                     try:
                         await context.bot.edit_message_text(
                             chat_id=update.message.chat_id,
                             message_id=context.user_data['last_suggestion_msg_id'],
-                            text=full_message,
+                            text=response,
+                            reply_markup=reply_markup,
                             parse_mode=ParseMode.HTML
                         )
                     except Exception as e:
                         self.logger.error(f"Ошибка обновления подсказки: {str(e)}")
                         msg = await update.message.reply_text(
-                            full_message,
+                            response,
+                            reply_markup=reply_markup,
                             parse_mode=ParseMode.HTML
                         )
                         context.user_data['last_suggestion_msg_id'] = msg.message_id
                 else:
                     msg = await update.message.reply_text(
-                        full_message,
+                        response,
+                        reply_markup=reply_markup,
                         parse_mode=ParseMode.HTML
                     )
                     context.user_data['last_suggestion_msg_id'] = msg.message_id
@@ -404,7 +408,7 @@ class TelegramBot:
 
             await query.edit_message_text(
                 f"🔎 <b>Поиск гриба по названию</b>\n\n"
-                f"Нажмите кнопку <b>'Начать поиск'</b> ниже, и поле ввода сообщения автоматически подготовится к поиску.\n\n"
+                f"Нажмите кнопку <b>'Начать поиск'</b> ниже, и поле ввода сообщения автоматически подготовится к поиску. Либо же можете написать названия гриба обычным сообщением, а я попробую предложить вам возможные варианты!\n\n"
                 f"Или введите вручную:\n"
                 f"<code>@{bot_username} название_гриба</code>\n\n"
                 f"Например: <code>@{bot_username} мухом</code>\n\n"
@@ -430,18 +434,14 @@ class TelegramBot:
                 await update.message.reply_text(f"❌ Информация о грибе '{mushroom_name}' не найдена.")
                 return
 
+            # Получаем путь к изображению гриба
             photo_path = self.mushroom_images[mushroom_name]
-            description = settings.mushroom_descriptions.get(
-                mushroom_name,
-                f"{mushroom_name.capitalize()}. Информация о съедобности отсутствует."
-            )
 
             formatted_desc = (
                 f"🍄 <b>{mushroom_name.capitalize()}</b>\n\n"
-                f"{description}\n\n"
-                "Для нового поиска используйте /start"
             )
 
+            # Отправляем фото гриба и описание
             with open(photo_path, 'rb') as photo_file:
                 await update.message.reply_photo(
                     photo=photo_file,
@@ -449,6 +449,7 @@ class TelegramBot:
                     parse_mode=ParseMode.HTML
                 )
 
+            # Кнопка "Назад"
             keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
@@ -468,15 +469,9 @@ class TelegramBot:
                 return
 
             photo_path = self.mushroom_images[mushroom_name]
-            description = settings.mushroom_descriptions.get(
-                mushroom_name,
-                f"{mushroom_name.capitalize()}. Информация о съедобности отсутствует."
-            )
 
             formatted_desc = (
                 f"🍄 <b>{mushroom_name.capitalize()}</b>\n\n"
-                f"{description}\n\n"
-                "Для нового поиска используйте /start"
             )
 
             await query.message.reply_photo(
