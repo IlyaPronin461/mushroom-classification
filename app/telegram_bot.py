@@ -24,8 +24,11 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from app.services import MushroomClassifier
 from app.config import settings, logger
+from app.tasks import classify_mushroom_image
 
 from telegram import ReplyKeyboardMarkup, KeyboardButton
+
+import base64
 
 
 class TelegramBot:
@@ -231,42 +234,52 @@ class TelegramBot:
         try:
             message = await update.message.reply_text("🔬 Анализирую изображение...")
 
+            # Получаем изображение из сообщения
             photo_file = await update.message.photo[-1].get_file()
             photo_bytes = await photo_file.download_as_bytearray()
-            image = Image.open(io.BytesIO(photo_bytes))
 
-            if image.mode != "RGB":
-                image = image.convert("RGB")
+            # Преобразуем фото в строку base64
+            photo_base64 = base64.b64encode(photo_bytes).decode('utf-8')
 
-            with tempfile.NamedTemporaryFile(suffix=".jpg") as temp_file:
-                image.save(temp_file, format="JPEG")
-                predictions = self.classifier.predict(temp_file.name)
+            logging.info("Фото получено и преобразовано в base64.")
 
-                response = "🍄 <b>Результаты анализа:</b>\n\n"
+            # Передаем строку base64 в Celery задачу для классификации
+            task = classify_mushroom_image.apply_async(args=[photo_base64])
 
-                for i, pred in enumerate(predictions[:5], 1):
-                    class_name = pred['class_name']
-                    description = settings.mushroom_descriptions.get(
-                        class_name,
-                        f"{class_name}. Информация о съедобности отсутствует"
-                    )
-                    response += (
-                        f"{i}. <b>{class_name.capitalize()}</b>\n"
-                        f"<i>{description}</i>\n"
-                        f"Точность: {pred['confidence']:.1f}%\n\n"
-                    )
+            logging.info(f"Задача Celery отправлена с ID: {task.id}")
 
+            # Получаем результат из задачи
+            predictions = task.get()
+
+            logging.info("Получены результаты от задачи Celery.")
+
+            # Формируем ответ с результатами
+            response = "🍄 <b>Результаты анализа:</b>\n\n"
+            for i, pred in enumerate(predictions[:5], 1):
+                class_name = pred['class_name']
+                confidence = pred['confidence']
+                description = settings.mushroom_descriptions.get(
+                    class_name,
+                    f"{class_name}. Информация о съедобности отсутствует"
+                )
                 response += (
-                    "\n⚠️ <b>Внимание!</b> Бот не является профессиональным микологом. "
-                    "Всегда перепроверяйте информацию перед употреблением грибов в пищу."
+                    f"{i}. <b>{class_name.capitalize()}</b>\n"
+                    f"<i>{description}</i>\n"
+                    f"Точность: {confidence:.1f}%\n\n"
                 )
 
-                await message.edit_text(response, parse_mode=ParseMode.HTML)
+            response += (
+                "\n⚠️ <b>Внимание!</b> Бот не является профессиональным микологом. "
+                "Всегда перепроверяйте информацию перед употреблением грибов в пищу."
+            )
 
-                # Предлагаем посмотреть фото для первого результата
-                first_pred = predictions[0]['class_name']
-                if first_pred in self.mushroom_images:
-                    await self._send_mushroom_photo(update, context, first_pred)
+            # Обновляем сообщение с результатами
+            await message.edit_text(response, parse_mode=ParseMode.HTML)
+
+            # Предлагаем посмотреть фото для первого результата
+            first_pred = predictions[0]['class_name']
+            if first_pred in self.mushroom_images:
+                await self._send_mushroom_photo(update, context, first_pred)
 
             # Добавляем кнопку "Назад"
             keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]]
@@ -277,7 +290,7 @@ class TelegramBot:
             )
 
         except Exception as e:
-            self.logger.error(f"Ошибка обработки фото: {str(e)}", exc_info=True)
+            logging.error(f"Ошибка обработки фото: {str(e)}", exc_info=True)
             await update.message.reply_text(
                 "❌ Произошла ошибка при обработке фото. Попробуйте отправить другое изображение."
             )

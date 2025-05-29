@@ -1,4 +1,4 @@
-mushroom-classification/
+Pet-проект/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
@@ -6,7 +6,9 @@ mushroom-classification/
 │   ├── telegram_bot.py
 │   ├── services.py
 │   ├── __main__.py
-│   └── config.py
+│   ├── config.py
+│   ├── celery_config.py         # Новый файл конфигурации для Celery
+│   ├── tasks.py                # Новый файл для задач Celery
 ├── mushroom_photo/
 │   ├── Белый гриб.jpg
 │   ├── Бокальчик гладкий.jpg

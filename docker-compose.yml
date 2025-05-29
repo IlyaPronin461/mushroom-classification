@@ -3,8 +3,21 @@ services:
     build: .
     volumes:
       - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
-      - ./mushroom_photo:/app/mushroom_photo
     ports:
       - "8000:8000"
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  celery:
+    build: .
+    volumes:
+      - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
+    command: celery -A app.celery_config.celery_app worker --loglevel=info
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
