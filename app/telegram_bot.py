@@ -25,6 +25,8 @@ from telegram.constants import ParseMode
 from app.services import MushroomClassifier
 from app.config import settings, logger
 
+from telegram import ReplyKeyboardMarkup, KeyboardButton
+
 
 class TelegramBot:
     class FakeMessage:
@@ -58,6 +60,7 @@ class TelegramBot:
 
         # Регистрируем обработчики
         self.app.add_handler(CommandHandler("start", self.start_command))
+        self.app.add_handler(CommandHandler("help", self.send_help_message))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.handle_photo))
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
         self.app.add_handler(CallbackQueryHandler(self.handle_button))
@@ -93,21 +96,34 @@ class TelegramBot:
         return sorted(matches)
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработчик команды /start с клавиатурой выбора действия"""
+        """Обработчик команды /start с обычной клавиатурой"""
         keyboard = [
-            [InlineKeyboardButton("🔍 Определить гриб по фото", callback_data='identify')],
-            [InlineKeyboardButton("📖 Найти гриб по названию", callback_data='search')]
+            [KeyboardButton("/start"), KeyboardButton("/help")]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
         welcome_text = (
             "🍄 <b>Грибной Эксперт</b> 🍄\n\n"
             "Я помогу вам определить грибы по фото или найти информацию по названию.\n\n"
-            "Выберите действие:"
+            "Выберите действие или используйте команды ниже:"
         )
         await update.message.reply_text(
             welcome_text,
             reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+
+        # inline кнопки для действия (определение гриба по фото и поиск по названию)
+        inline_keyboard = [
+            [InlineKeyboardButton("🔍 Определить гриб по фото", callback_data='identify')],
+            [InlineKeyboardButton("📖 Найти гриб по названию", callback_data='search')]
+        ]
+        reply_markup_inline = InlineKeyboardMarkup(inline_keyboard)
+
+        # Отправляем сообщение с кнопками для действия
+        await update.message.reply_text(
+            "Выберите действие:",
+            reply_markup=reply_markup_inline,
             parse_mode=ParseMode.HTML
         )
 
@@ -275,7 +291,15 @@ class TelegramBot:
             # Логируем полученный запрос
             self.logger.debug(f"Получен текстовый запрос: '{query}' от пользователя {user_id}")
 
-            # Вместо пропуска inline-запросов просто продолжим обработку
+            # Если это команды /start или /help, обрабатываем их отдельно
+            if query == "/start":
+                await self.start_command(update, context)
+                return  # Прерываем выполнение функции, так как команда /start обработана
+            elif query == "/help":
+                await self.send_help_message(update, context)
+                return  # Прерываем выполнение функции, так как команда /help обработана
+
+            # Если запрос содержит название гриба
             if query.startswith("🍄 "):
                 query = query[2:].strip()  # Убираем символ "🍄" если он есть
 
@@ -382,6 +406,30 @@ class TelegramBot:
         except Exception as e:
             self.logger.error(f"Ошибка обработки текста: {str(e)}", exc_info=True)
             await update.message.reply_text("❌ Произошла ошибка при обработке запроса.")
+
+    async def send_help_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Отправка сообщения с инструкциями по использованию бота"""
+        help_text = (
+            "🍄 <b>Грибной Эксперт - Помощь</b> 🍄\n\n"
+            "Этот бот поможет вам определить грибы по фотографии или найти информацию о грибах по названию.\n\n"
+            "<b>Как пользоваться:</b>\n\n"
+            "1. Для начала работы с ботом нажмите кнопку <b>'/start'</b> или выберите команду из меню.\n"
+            "2. Вы можете отправить фотографию гриба, выбрав команду <b>'🔍 Определить гриб по фото'</b>, и бот постарается определить его.\n"
+            "3. Если хотите найти гриб по названию, выберите команду <b>'📖 Найти гриб по названию'</b>.\n"
+            "4. Напишите название гриба, и бот предложит возможные совпадения.\n\n"
+            "<b>Команды:</b>\n"
+            "/start - Начать работу с ботом\n"
+            "/help - Получить помощь\n"
+            "📸 Отправьте фото гриба, чтобы получить информацию о нем.\n"
+            "🔎 Напишите название гриба, чтобы найти его в базе данных."
+        )
+
+        # Добавляем кнопки для навигации
+        keyboard = [[KeyboardButton("/start"), KeyboardButton("/help")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        # Отправляем сообщение с инструкциями
+        await update.message.reply_text(help_text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
 
     async def handle_button(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик нажатий на кнопки"""
