@@ -11,7 +11,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-# Копируем папку с фотографиями
-COPY mushroom_photo /app/mushroom_photo
-
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

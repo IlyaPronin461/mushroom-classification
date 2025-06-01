@@ -1,4 +1,4 @@
-Pet-проект/
+mushroom-classification/
 ├── app/
 │   ├── __init__.py
 │   ├── __main__.py

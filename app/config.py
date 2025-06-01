@@ -1,15 +1,22 @@
 import logging
 from pydantic_settings import BaseSettings
 from logging.config import dictConfig
+from dotenv import load_dotenv
+import os
 
+
+# Загружаем переменные из .env
+load_dotenv()
 
 class Settings(BaseSettings):
     gdrive_file_ids: dict = {
-        "config.json": "1VMpENG-GP1FS2KpZKmws_xTL8C2hjz-5",
-        "model.safetensors": "1hlK4Lpj1QxqQV0-AYDJuMzKdGndUuq5A",
-        "preprocessor_config.json": "1iMCKQVDvZVOcRwC2iZioktDLFbTb-vSm",
-        "metadata.json": "1YzRyyuSkjfPLsze0ERQmW37g4WwKMAzH"
+        "config.json": os.getenv("GDRIVE_CONFIG_FILE_ID"),
+        "model.safetensors": os.getenv("GDRIVE_MODEL_FILE_ID"),
+        "preprocessor_config.json": os.getenv("GDRIVE_PREPROCESSOR_FILE_ID"),
+        "metadata.json": os.getenv("GDRIVE_METADATA_FILE_ID")
     }
+
+    telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN")
 
     mushroom_descriptions: dict = {
         'Stropharia aeruginosa': '🟢 Строфария сине-зелёная (Съедобен)',

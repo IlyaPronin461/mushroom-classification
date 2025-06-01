@@ -10,7 +10,7 @@ from app.config import logger
 import asyncio
 from app.telegram_bot import TelegramBot
 from app.services import MushroomClassifier
-from pathlib import Path
+from app.config import settings
 
 app = FastAPI(
     title="Mushroom Classification API",
@@ -21,11 +21,9 @@ app = FastAPI(
 
 def read_token_from_file():
     try:
-        token_path = Path("telegram_bot_token.txt")
-        with open(token_path, 'r') as f:
-            token = f.read().strip()
+        token = settings.telegram_bot_token
         if not token:
-            raise ValueError("Файл токена пуст")
+            raise ValueError("Токен Telegram пуст")
         return token
     except Exception as e:
         logger.error(f"Ошибка чтения токена: {str(e)}")
