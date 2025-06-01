@@ -1,40 +1,36 @@
-from app.celery_app import celery_app
+import tempfile
+import base64
+import redis
+import pickle
 from app.services import MushroomClassifier
 from app.config import settings
-from PIL import Image
-import tempfile
-import io
-import base64
 import logging
-
+from app.celery_app import celery_app
 
 @celery_app.task(bind=True)
 def classify_mushroom_image(self, photo_base64: str):
     """Фоновая задача для классификации гриба по изображению"""
     try:
-        logging.info("Начинаю обработку изображения...")
+        # Извлекаем модель из Redis
+        redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
+        classifier_data = redis_client.get('mushroom_classifier')
 
-        # Декодируем фото из base64 обратно в байты
+        if classifier_data is None:
+            # Если модель не найдена в Redis, создаем новую
+            classifier = MushroomClassifier()
+        else:
+            classifier = pickle.loads(classifier_data)
+
+        # Декодируем изображение из base64
         photo_bytes = base64.b64decode(photo_base64)
 
-        logging.info("Фото успешно декодировано.")
+        # Создаем временный файл для изображения
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            temp_file.write(photo_bytes)
+            temp_file_path = temp_file.name
 
-        # Преобразуем фото в изображение
-        image = Image.open(io.BytesIO(photo_bytes))
-        if image.mode != "RGB":
-            image = image.convert("RGB")
-
-        logging.info("Изображение успешно преобразовано в формат RGB.")
-
-        # Временный файл для изображения
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as temp_file:
-            image.save(temp_file, format="JPEG")
-            logging.info("Изображение сохранено во временный файл.")
-
-            # Используем классификатор для предсказания
-            classifier = MushroomClassifier()
-            predictions = classifier.predict(temp_file.name)
-            logging.info(f"Получены предсказания: {predictions}")
+        # Теперь передаем путь к временно сохраненному файлу в сервис для классификации
+        predictions = classifier.predict(temp_file_path)
 
         # Формируем результаты
         response = []
@@ -51,7 +47,6 @@ def classify_mushroom_image(self, photo_base64: str):
             })
 
         logging.info("Результаты классификации сформированы.")
-
         return response
 
     except Exception as e:

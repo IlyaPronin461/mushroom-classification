@@ -6,7 +6,7 @@ import tempfile
 from shutil import rmtree
 import gdown
 import logging
-from .config import settings, logger
+from .config import settings
 
 
 class MushroomClassifier:

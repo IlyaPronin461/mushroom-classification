@@ -1,6 +1,8 @@
 services:
   web:
     build: .
+    depends_on:
+      - redis
     volumes:
       - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
     ports:
@@ -10,6 +12,8 @@ services:
 
   celery:
     build: .
+    depends_on:
+      - redis
     volumes:
       - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
     command: celery -A app.celery_config.celery_app worker --loglevel=info

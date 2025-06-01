@@ -1,14 +1,15 @@
 Pet-проект/
 ├── app/
 │   ├── __init__.py
+│   ├── __main__.py
+│   ├── celery_app.py
+│   ├── celery_config.py
+│   ├── config.py
 │   ├── main.py
 │   ├── models.py
-│   ├── telegram_bot.py
 │   ├── services.py
-│   ├── __main__.py
-│   ├── config.py
-│   ├── celery_config.py         # Новый файл конфигурации для Celery
-│   ├── tasks.py                # Новый файл для задач Celery
+│   ├── tasks.py
+│   ├── telegram_bot.py
 ├── mushroom_photo/
 │   ├── Белый гриб.jpg
 │   ├── Бокальчик гладкий.jpg

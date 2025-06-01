@@ -1,15 +1,14 @@
 import logging
 import os
-import tempfile
 import asyncio
-import io
-from PIL import Image
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
     InputTextMessageContent,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
 )
 from telegram.ext import (
     Application,
@@ -26,9 +25,10 @@ from app.services import MushroomClassifier
 from app.config import settings, logger
 from app.tasks import classify_mushroom_image
 
-from telegram import ReplyKeyboardMarkup, KeyboardButton
 
 import base64
+import redis
+import pickle
 
 
 class TelegramBot:
@@ -54,6 +54,11 @@ class TelegramBot:
     def __init__(self, token: str, classifier: MushroomClassifier):
         self.token = token
         self.classifier = classifier
+
+        self.redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
+        # Сохраняем модель в Redis, используя pickle для сериализации
+        self.redis_client.set('mushroom_classifier', pickle.dumps(self.classifier))
+
         self.logger = logging.getLogger("app.telegram_bot")
         self.app = Application.builder().token(self.token).build()
         self.user_states = {}  # Для хранения состояний пользователей
@@ -106,7 +111,7 @@ class TelegramBot:
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
         welcome_text = (
-            "🍄 <b>Грибной Эксперт</b> 🍄\n\n"
+            "🍄 <b>Грибной Помощник</b> 🍄\n\n"
             "Я помогу вам определить грибы по фото или найти информацию по названию.\n\n"
             "Выберите действие или используйте команды ниже:"
         )
@@ -241,17 +246,11 @@ class TelegramBot:
             # Преобразуем фото в строку base64
             photo_base64 = base64.b64encode(photo_bytes).decode('utf-8')
 
-            logging.info("Фото получено и преобразовано в base64.")
-
             # Передаем строку base64 в Celery задачу для классификации
             task = classify_mushroom_image.apply_async(args=[photo_base64])
 
-            logging.info(f"Задача Celery отправлена с ID: {task.id}")
-
             # Получаем результат из задачи
             predictions = task.get()
-
-            logging.info("Получены результаты от задачи Celery.")
 
             # Формируем ответ с результатами
             response = "🍄 <b>Результаты анализа:</b>\n\n"
@@ -276,12 +275,6 @@ class TelegramBot:
             # Обновляем сообщение с результатами
             await message.edit_text(response, parse_mode=ParseMode.HTML)
 
-            # Предлагаем посмотреть фото для первого результата
-            first_pred = predictions[0]['class_name']
-            if first_pred in self.mushroom_images:
-                await self._send_mushroom_photo(update, context, first_pred)
-
-            # Добавляем кнопку "Назад"
             keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
