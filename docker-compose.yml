@@ -1,27 +1,66 @@
 services:
-  web:
-    build: .
-    depends_on:
-      - redis
-    volumes:
-      - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: mushroom_classification
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "8000:8000"
-    restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-  celery:
-    build: .
-    depends_on:
-      - redis
+      - "5432:5432"
+    networks:
+      - my_network
     volumes:
-      - ./telegram_bot_token.txt:/app/telegram_bot_token.txt:ro
-    command: celery -A app.celery_config.celery_app worker --loglevel=info
-    restart: unless-stopped
+      - postgres_data:/var/lib/postgresql/data  # Для постоянства данных
+      - ./database:/docker-entrypoint-initdb.d  # Указываем путь к скрипту
 
   redis:
     image: redis:latest
     container_name: redis
-    restart: unless-stopped
     ports:
       - "6379:6379"
+    networks:
+      - my_network
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: mushroom_classification
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      REDIS_HOST: redis  # Подключение к Redis
+      REDIS_PORT: 6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis  # Убедитесь, что Redis запущен перед приложением
+    networks:
+      - my_network
+    restart: unless-stopped
+
+  celery:
+    build: .
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: mushroom_classification
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      REDIS_HOST: redis  # Подключение к Redis
+      REDIS_PORT: 6379
+    command: celery -A app.celery_config.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - db
+    networks:
+      - my_network
+    restart: unless-stopped
+
+networks:
+  my_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -5,6 +5,7 @@ mushroom-classification/
 │   ├── celery_app.py
 │   ├── celery_config.py
 │   ├── config.py
+│   ├── DataBase.py
 │   ├── main.py
 │   ├── models.py
 │   ├── services.py
@@ -15,9 +16,11 @@ mushroom-classification/
 │   ├── Бокальчик гладкий.jpg
 │   ├── ...
 │   └── Эверния сливовая.jpg
+├── database/
+│   └── 01-init.sql
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
-├── telegram_bot_token.txt
 ├── setup.py
+├── .env
 └── README.md
