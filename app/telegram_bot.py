@@ -24,6 +24,7 @@ from telegram.constants import ParseMode
 from app.services import MushroomClassifier
 from app.config import settings, logger
 from app.tasks import classify_mushroom_image
+from app.DataBase import DataBase
 
 
 import base64
@@ -51,9 +52,10 @@ class TelegramBot:
         def __init__(self, message_id):
             self.message_id = message_id  # Имитация атрибута message_id, который нужен в handle_text
 
-    def __init__(self, token: str, classifier: MushroomClassifier):
+    def __init__(self, token: str, classifier: MushroomClassifier, db: DataBase):
         self.token = token
         self.classifier = classifier
+        self.db = db
 
         self.redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
         # Сохраняем модель в Redis, используя pickle для сериализации
@@ -104,7 +106,18 @@ class TelegramBot:
         return sorted(matches)
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработчик команды /start с обычной клавиатурой"""
+        """Обработчик команды /start с проверкой и добавлением пользователя в базу данных"""
+        user_id = update.message.from_user.id
+        username = update.message.from_user.username
+
+        # Проверяем, есть ли уже пользователь в базе данных
+        existing_user = self.db.get_user_by_telegram_id(user_id)
+        if not existing_user:
+            # Если пользователя нет, добавляем его
+            self.db.create_user(username, user_id)
+            self.logger.info(f"Пользователь {username} с ID {user_id} добавлен в базу")
+
+        # Отправляем приветственное сообщение пользователю
         keyboard = [
             [KeyboardButton("/start"), KeyboardButton("/help")]
         ]

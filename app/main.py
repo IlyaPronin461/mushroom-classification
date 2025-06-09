@@ -46,23 +46,10 @@ async def startup_event():
     # Добавляем задержку перед подключением к БД
     await asyncio.sleep(10)  # Задержка в 10 секунд
 
-    # Попробуйте подключение к БД и добавление пользователей
-    try:
-        user_id = 987654321
-        username = "new_user"
-        logger.info(f"Пытаемся найти пользователя с ID {user_id}...")
-        existing_user = db.get_user_by_telegram_id(user_id)  # Проверяем, есть ли пользователь в БД
-        if existing_user:
-            logger.info(f"Пользователь с ID {user_id} уже существует.")
-        else:
-            db.create_user(username, user_id)
-            logger.info(f"Пользователь {username} с ID {user_id} добавлен в базу")
-    except Exception as e:
-        logger.error(f"Ошибка при добавлении пользователя: {e}")
-
-    # Инициализируем бота
+    # Инициализируем бота с передачей объекта базы данных
     token = read_token_from_file()
-    bot = TelegramBot(token, MushroomClassifier())
+    classifier = MushroomClassifier()  # Создаём экземпляр классификатора
+    bot = TelegramBot(token, classifier, db)  # Передаем db и классификатор в конструктор бота
 
     # Запускаем бота в фоновом режиме
     asyncio.create_task(bot.run())
