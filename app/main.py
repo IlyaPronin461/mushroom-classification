@@ -9,6 +9,8 @@
 # подлючение к контейнеру с PostgreSQL: docker exec -it mushroom-classification-db-1 bash
 # для подключения к базе данных: psql -U postgres -d mushroom_classification
 # и потом делать запрос: SELECT * FROM users;
+# включить и выключить расширенный режим вывода: \x
+# и потом делать запрос: SELECT * FROM queries;
 # логи БД: docker logs mushroom-classification-db-1
 
 

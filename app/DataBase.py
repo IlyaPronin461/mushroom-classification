@@ -28,12 +28,12 @@ class DataBase:
             with conn.cursor() as cursor:
                 logging.info(f"Запрос на получение пользователя с Telegram ID: {telegram_user_id}")
                 cursor.execute(
-                    "SELECT id FROM users WHERE telegram_user_id = %s",
+                    "SELECT telegram_user_id FROM users WHERE telegram_user_id = %s",  # Используем telegram_user_id
                     (telegram_user_id,)
                 )
                 user = cursor.fetchone()
                 if user:
-                    logging.info(f"Пользователь найден с ID: {user[0]}")
+                    logging.info(f"Пользователь найден с Telegram ID: {user[0]}")
                     return user
                 logging.info(f"Пользователь с Telegram ID {telegram_user_id} не найден.")
                 return None
@@ -45,30 +45,32 @@ class DataBase:
 
     def create_user(self, username, telegram_user_id):
         """Добавить пользователя в базу данных, если его нет"""
-        # Проверяем, существует ли уже пользователь
-        existing_user = self.get_user_by_telegram_id(telegram_user_id)
+        # Исключаем бота с ID 7372528514
+        if telegram_user_id == 7372528514:
+            logging.info(f"Бот с Telegram ID {telegram_user_id} не добавляется в базу данных.")
+            return None  # Возвращаем None, чтобы указать, что бот не был добавлен
 
+        existing_user = self.get_user_by_telegram_id(telegram_user_id)
         if existing_user:
-            logging.info(f"Пользователь с ID {telegram_user_id} уже существует.")
+            logging.info(f"Пользователь с Telegram ID {telegram_user_id} уже существует.")
             return existing_user[0]  # Возвращаем ID существующего пользователя
 
-        # Если пользователя нет, добавляем нового
         conn = self.get_connection()
         try:
             logging.info(f"Создание нового пользователя с Telegram ID {telegram_user_id} и username {username}")
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO users (username, telegram_user_id)
+                    INSERT INTO users (telegram_user_id, username)
                     VALUES (%s, %s)
-                    RETURNING id;
+                    RETURNING telegram_user_id;
                     """,
-                    (username, telegram_user_id)
+                    (telegram_user_id, username)
                 )
-                conn.commit()
-                user_id = cursor.fetchone()[0]  # Получаем ID нового пользователя
-                logging.info(f"Новый пользователь добавлен с ID: {user_id}")
-                return user_id
+                conn.commit()  # Обязательно вызывайте commit, чтобы изменения были зафиксированы
+                user_id = cursor.fetchone()[0]  # Получаем telegram_user_id, а не внутренний ID
+                logging.info(f"Новый пользователь добавлен с Telegram ID: {user_id}")
+                return user_id  # Возвращаем telegram_user_id
         except Exception as e:
             logging.error(f"Ошибка добавления пользователя: {e}")
             raise
@@ -101,3 +103,37 @@ class DataBase:
             except psycopg2.Error as e:
                 logging.error(f"Критическая ошибка подключения: {e}")
                 raise
+
+    def save_query(self, user_id, query_type, mushroom_image=None, query_text=None):
+        """Сохраняем запрос в базу данных"""
+        conn = self.get_connection()
+        try:
+            with conn.cursor() as cursor:
+                # Проверяем, существует ли пользователь в таблице users по telegram_user_id
+                cursor.execute("SELECT telegram_user_id FROM users WHERE telegram_user_id = %s", (user_id,))
+                user = cursor.fetchone()
+                if not user:
+                    logging.error(f"Пользователь с Telegram ID {user_id} не найден в таблице users.")
+                    raise ValueError(f"Пользователь с Telegram ID {user_id} не найден в базе.")
+
+            # Сохраняем запрос
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO queries (user_id, query_type, query_text, mushroom_image)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id;
+                    """,
+                    (user_id, query_type, query_text, mushroom_image)
+                )
+                conn.commit()
+                query_id = cursor.fetchone()[0]  # Получаем ID нового запроса
+                logging.info(f"Новый запрос сохранен с ID: {query_id}")
+                return query_id
+        except Exception as e:
+            logging.error(f"Ошибка сохранения запроса: {e}")
+            raise
+        finally:
+            conn.close()
+
+

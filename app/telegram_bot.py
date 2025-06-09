@@ -155,11 +155,18 @@ class TelegramBot:
         if not query:
             return
 
+        user_id = update.inline_query.from_user.id
+
+        # Сохраняем запрос в БД с типом "search_by_name_inline" (инлайн-запрос)
+        query_type = "search_by_name_inline"
+        self.db.save_query(user_id, query_type, query_text=query)
+
         matches = self._find_similar_mushrooms(query, limit=10)
         results = []
 
         self.logger.debug(f"Обрабатываем inline запрос с текстом: '{query}'")
 
+        # Формируем результаты для инлайн-запроса
         for idx, name in enumerate(matches):
             results.append(
                 InlineQueryResultArticle(
@@ -176,6 +183,7 @@ class TelegramBot:
         self.logger.debug(f"Найдено {len(results)} результатов по запросу '{query}'")
 
         try:
+            # Отправляем результаты инлайн-запроса
             await update.inline_query.answer(results, cache_time=1)
         except Exception as e:
             self.logger.error(f"Ошибка при обработке inline-запроса: {str(e)}")
@@ -184,8 +192,6 @@ class TelegramBot:
         if results:
             chosen_name = results[0].input_message_content.message_text.strip("🍄 ").lower()
             self.logger.debug(f"Выбранный гриб: {chosen_name}")
-
-            user_id = update.inline_query.from_user.id
 
             # Создаем фиктивный объект update для вызова handle_text
             fake_message = self.FakeMessage(chosen_name, update.inline_query.from_user)
@@ -250,16 +256,24 @@ class TelegramBot:
     async def handle_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик фотографий"""
         try:
+            # Отправляем сообщение, что начинаем анализ
             message = await update.message.reply_text("🔬 Анализирую изображение...")
 
             # Получаем изображение из сообщения
             photo_file = await update.message.photo[-1].get_file()
             photo_bytes = await photo_file.download_as_bytearray()
 
-            # Преобразуем фото в строку base64
-            photo_base64 = base64.b64encode(photo_bytes).decode('utf-8')
+            # Получаем ID пользователя
+            user_id = update.message.from_user.id
+            user_name = update.message.from_user.username
 
-            # Передаем строку base64 в Celery задачу для классификации
+            # Сохраняем запрос в БД с типом "define_by_photo" (по фото)
+            query_type = "define_by_photo"
+            mushroom_image = photo_bytes  # Сохраняем само изображение
+            self.db.save_query(user_id, query_type, mushroom_image)
+
+            # Преобразуем фото в base64 и передаем в задачу Celery для классификации
+            photo_base64 = base64.b64encode(photo_bytes).decode('utf-8')
             task = classify_mushroom_image.apply_async(args=[photo_base64])
 
             # Получаем результат из задачи
@@ -288,6 +302,7 @@ class TelegramBot:
             # Обновляем сообщение с результатами
             await message.edit_text(response, parse_mode=ParseMode.HTML)
 
+            # Кнопка "Назад"
             keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text(
@@ -309,6 +324,10 @@ class TelegramBot:
 
             # Логируем полученный запрос
             self.logger.debug(f"Получен текстовый запрос: '{query}' от пользователя {user_id}")
+
+            # Сохраняем запрос в БД с типом "search_by_name" (по названию гриба)
+            query_type = "search_by_name"
+            self.db.save_query(user_id, query_type, query_text=query)
 
             # Если это команды /start или /help, обрабатываем их отдельно
             if query == "/start":
