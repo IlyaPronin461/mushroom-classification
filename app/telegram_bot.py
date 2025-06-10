@@ -159,8 +159,7 @@ class TelegramBot:
 
         # Сохраняем запрос в БД с типом "search_by_name_inline" (инлайн-запрос)
         query_type = "search_by_name_inline"
-        self.db.save_query(user_id, query_type, query_text=query)
-
+        # Промежуточный запрос не сохраняем, сохраняем только итоговый
         matches = self._find_similar_mushrooms(query, limit=10)
         results = []
 
@@ -190,6 +189,7 @@ class TelegramBot:
 
         # Теперь вызовем handle_text, как будто пользователь ввел название гриба вручную
         if results:
+            # Выбираем гриб по первому совпадению
             chosen_name = results[0].input_message_content.message_text.strip("🍄 ").lower()
             self.logger.debug(f"Выбранный гриб: {chosen_name}")
 
@@ -325,9 +325,10 @@ class TelegramBot:
             # Логируем полученный запрос
             self.logger.debug(f"Получен текстовый запрос: '{query}' от пользователя {user_id}")
 
-            # Сохраняем запрос в БД с типом "search_by_name" (по названию гриба)
-            query_type = "search_by_name"
-            self.db.save_query(user_id, query_type, query_text=query)
+            # Если запрос начинается с "🍄", это финальный запрос, сохраняем его в БД
+            if query.startswith("🍄 "):
+                query_type = "search_by_name"
+                self.db.save_query(user_id, query_type, query_text=query)
 
             # Если это команды /start или /help, обрабатываем их отдельно
             if query == "/start":
@@ -476,10 +477,16 @@ class TelegramBot:
         user_id = query.from_user.id
 
         if query.data == 'identify':
+            # Отправляем сообщение с инструкцией по отправке фото гриба и кнопкой "Назад"
+            keyboard = [
+                [InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]  # Кнопка "Назад"
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
             await query.edit_message_text(
                 "📸 <b>Определение гриба по фото</b>\n\n"
-                "Отправьте мне четкое фото гриба (лучше всего сфотографировать шляпку и ножку).\n\n"
-                "Для возврата в меню используйте /start",
+                "Отправьте мне четкое фото гриба (лучше всего сфотографировать шляпку и ножку)",
+                reply_markup=reply_markup,
                 parse_mode=ParseMode.HTML
             )
             self.user_states[user_id] = 'identifying'
@@ -506,7 +513,15 @@ class TelegramBot:
 
         elif query.data.startswith("select_"):
             mushroom_name = query.data[7:]
+
+            # Сохраняем в базу данных выбранный гриб
+            query_type = "search_by_name"
+            self.db.save_query(user_id, query_type, query_text=f'🍄 {mushroom_name}')
+
+            # Отправляем пользователю подробности о выбранном грибе
             await self._send_mushroom_details_query(query, context, mushroom_name)
+
+            # Снимаем состояние пользователя
             self.user_states.pop(user_id, None)
 
         elif query.data == 'back_to_start':

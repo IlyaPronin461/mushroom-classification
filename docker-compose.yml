@@ -2,16 +2,16 @@ services:
   db:
     image: postgres:13
     environment:
-      POSTGRES_DB: mushroom_classification
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     networks:
       - my_network
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Для постоянства данных
-      - ./database:/docker-entrypoint-initdb.d  # Указываем путь к скрипту
+      - ./database:/docker-entrypoint-initdb.d  # Путь к скрипту
 
   redis:
     image: redis:latest
@@ -25,17 +25,17 @@ services:
   app:
     build: .
     environment:
-      POSTGRES_HOST: db
-      POSTGRES_DB: mushroom_classification
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis  # Подключение к Redis
       REDIS_PORT: 6379
     ports:
       - "8000:8000"
     depends_on:
       - db
-      - redis  # Убедитесь, что Redis запущен перед приложением
+      - redis
     networks:
       - my_network
     restart: unless-stopped
@@ -43,11 +43,11 @@ services:
   celery:
     build: .
     environment:
-      POSTGRES_HOST: db
-      POSTGRES_DB: mushroom_classification
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      REDIS_HOST: redis  # Подключение к Redis
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
       REDIS_PORT: 6379
     command: celery -A app.celery_config.celery_app worker --loglevel=info
     depends_on:

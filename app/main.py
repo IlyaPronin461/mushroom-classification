@@ -5,12 +5,12 @@
 # вывести логи: docker-compose logs -f   (выйти ctrl+C)
 
 
-# смотерим информацию и докере (id в том числе): docker ps
+# смотрим информацию и докере (id в том числе): docker ps
 # подлючение к контейнеру с PostgreSQL: docker exec -it mushroom-classification-db-1 bash
-# для подключения к базе данных: psql -U postgres -d mushroom_classification
+# для подключения к базе данных: PGPASSWORD=<password> psql -U <user> -h db -d mushroom_classification
 # и потом делать запрос: SELECT * FROM users;
 # включить и выключить расширенный режим вывода: \x
-# и потом делать запрос: SELECT * FROM queries;
+# и потом делать запрос: SELECT * FROM interactions;
 # логи БД: docker logs mushroom-classification-db-1
 
 

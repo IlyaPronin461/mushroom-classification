@@ -9,11 +9,11 @@ load_dotenv()
 class DataBase:
     def __init__(self):
         # Загружаем параметры из .env
-        self.name_db = os.getenv("POSTGRES_DB", "mushroom_classification")
-        self.host = os.getenv("POSTGRES_HOST", "db")
-        self.user = os.getenv("POSTGRES_USER", "postgres")
-        self.password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        self.port = os.getenv("POSTGRES_PORT", "5432")
+        self.name_db = os.getenv("POSTGRES_DB")
+        self.host = os.getenv("POSTGRES_HOST")
+        self.user = os.getenv("POSTGRES_USER")
+        self.password = os.getenv("POSTGRES_PASSWORD")
+        self.port = os.getenv("POSTGRES_PORT")
 
         # Настройка логирования
         logging.basicConfig(
@@ -120,7 +120,7 @@ class DataBase:
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO queries (user_id, query_type, query_text, mushroom_image)
+                    INSERT INTO interactions (user_id, query_type, query_text, mushroom_image)
                     VALUES (%s, %s, %s, %s)
                     RETURNING id;
                     """,
@@ -135,5 +135,3 @@ class DataBase:
             raise
         finally:
             conn.close()
-
-
