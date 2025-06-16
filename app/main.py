@@ -25,7 +25,7 @@ from app.DataBase import DataBase  # Импортируем DataBase для до
 app = FastAPI(
     title="Mushroom Classification API",
     description="API для классификации грибов по изображениям",
-    version="1.0.2"
+    version="1.0.3"
 )
 
 db = DataBase()  # Создаём объект для работы с БД

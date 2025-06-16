@@ -1,15 +1,11 @@
 import torch
-import torchvision.models as models
-import torch.nn as nn
-from torchvision import transforms
+from transformers import ViTForImageClassification, ViTImageProcessor
 from PIL import Image
 import os
-import gdown
-import logging
-import json
-from pathlib import Path
 import tempfile
 from shutil import rmtree
+import gdown
+import logging
 from .config import settings
 
 
@@ -18,20 +14,9 @@ class MushroomClassifier:
         self.logger = logging.getLogger("app.services")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger.info(f"Инициализация классификатора. Устройство: {self.device}")
-
         self.model = None
+        self.processor = None
         self.load_model()
-
-        # Определим трансформации для подготовки изображения
-        self.transform = transforms.Compose([
-            transforms.Resize(256),  # Уменьшаем изображение до 256x256
-            transforms.CenterCrop(224),  # Обрезаем центральную часть до 224x224
-            transforms.ToTensor(),  # Преобразуем изображение в тензор
-            transforms.Normalize(  # Нормализация изображения с усредненными значениями для ImageNet
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
 
     def download_file_from_gdrive(self, file_id, filename, temp_dir):
         """Загрузка файла с Google Диска по ID"""
@@ -48,38 +33,41 @@ class MushroomClassifier:
             raise
 
     def load_model(self):
-        """Загрузка модели ResNet и метаданных с Google Диска"""
-        self.logger.info("Начало загрузки модели ResNet с Google Диска")
+        """Загрузка модели и процессора с Google Диска"""
+        self.logger.info("Начало загрузки модели с Google Диска")
         temp_dir = tempfile.mkdtemp()
         self.logger.debug(f"Создана временная директория: {temp_dir}")
 
         try:
-            # Загружаем файлы модели
-            model_file = self.download_file_from_gdrive(settings.gdrive_file_ids['ResNet_model.pth'],
-                                                        'ResNet_model.pth', temp_dir)
-            metadata_file = self.download_file_from_gdrive(settings.gdrive_file_ids['metadata.json'], 'metadata.json',
-                                                           temp_dir)
+            # Загружаем все необходимые файлы
+            for name, file_id in settings.gdrive_file_ids.items():
+                self.logger.debug(f"Загрузка файла модели: {name}")
+                self.download_file_from_gdrive(file_id, name, temp_dir)
 
-            # Загружаем метаданные
-            with open(metadata_file, 'r') as f:
-                metadata = json.load(f)
+            # Проверяем, что все обязательные файлы загружены
+            required_files = ["config.json", "model.safetensors", "preprocessor_config.json"]
+            for file in required_files:
+                if not os.path.exists(os.path.join(temp_dir, file)):
+                    error_msg = f"Файл {file} не загружен!"
+                    self.logger.error(error_msg)
+                    raise FileNotFoundError(error_msg)
 
-            # Загружаем модель ResNet
-            model = models.resnet18(pretrained=False)
-            model.fc = nn.Linear(model.fc.in_features, len(metadata['class_names']))
-            model.load_state_dict(torch.load(model_file, map_location=torch.device('cpu')))
-            model.eval()
+            # Загружаем модель и процессор из временной директории
+            self.logger.info("Загрузка модели в память...")
+            self.model = ViTForImageClassification.from_pretrained(
+                temp_dir,
+                local_files_only=True,
+                use_safetensors=True
+            ).to(self.device)
 
-            # Сохраняем id2label и label2id для использования в предсказаниях
-            model.id2label = metadata['id2label']
-            model.label2id = metadata['label2id']
-            model.class_names = metadata['class_names']
-
-            self.model = model.to(self.device)
-            self.logger.info("Модель ResNet успешно загружена!")
+            self.processor = ViTImageProcessor.from_pretrained(
+                temp_dir,
+                local_files_only=True
+            )
+            self.logger.info("Модель успешно загружена!")
 
         except Exception as e:
-            self.logger.error(f"Ошибка при загрузке модели: {str(e)}")
+            self.logger.error(f"Критическая ошибка при загрузке модели: {str(e)}")
             raise RuntimeError(f"Ошибка загрузки модели: {e}")
         finally:
             try:
@@ -89,29 +77,29 @@ class MushroomClassifier:
                 self.logger.warning(f"Не удалось удалить временную директорию: {str(e)}")
 
     def predict(self, image_path: str):
+        """Предсказание классов грибов по изображению"""
         self.logger.info(f"Начало обработки изображения: {image_path}")
         try:
-            image = Image.open(image_path).convert("RGB")
-            image_tensor = self.transform(image).unsqueeze(0).to(self.device)
+            image = Image.open(image_path)
+            self.logger.debug("Изображение успешно открыто")
 
+            if image.mode != "RGB":
+                self.logger.debug("Конвертация изображения в RGB")
+                image = image.convert("RGB")
+
+            self.logger.debug("Подготовка входных данных для модели")
+            inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+
+            self.logger.debug("Выполнение предсказания")
             with torch.no_grad():
-                outputs = self.model(image_tensor)
+                outputs = self.model(**inputs)
 
-            probs = torch.nn.functional.softmax(outputs, dim=-1)[0]
+            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0]
             top5_probs, top5_indices = torch.topk(probs, 5)
-
-            self.logger.debug(f"Predicted indices: {top5_indices}")  # Добавить вывод индексов
-            self.logger.debug(f"Predicted probabilities: {top5_probs}")  # Добавить вывод вероятностей
 
             results = []
             for prob, idx in zip(top5_probs, top5_indices):
-                idx_item = str(idx.item())  # Преобразуем индекс в строку
-
-                # Теперь можно безопасно искать по строковым ключам
-                if idx_item in self.model.id2label:
-                    class_name = self.model.id2label[idx_item]
-                else:
-                    class_name = f"Неизвестный класс (индекс: {idx_item})"
+                class_name = self.model.config.id2label[idx.item()]
                 results.append({
                     "class_name": class_name,
                     "confidence": float(prob) * 100
@@ -120,7 +108,10 @@ class MushroomClassifier:
             self.logger.info("Предсказание успешно завершено")
             return results
 
+        except FileNotFoundError:
+            error_msg = f"Файл {image_path} не найден!"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
         except Exception as e:
             self.logger.error(f"Ошибка при выполнении предсказания: {str(e)}")
             raise
-

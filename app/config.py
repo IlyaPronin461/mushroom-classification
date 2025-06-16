@@ -10,7 +10,9 @@ load_dotenv()
 
 class Settings(BaseSettings):
     gdrive_file_ids: dict = {
-        "ResNet_model.pth": os.getenv("GDRIVE_RESNET_MODEL_FILE_ID"),
+        "config.json": os.getenv("GDRIVE_CONFIG_FILE_ID"),
+        "model.safetensors": os.getenv("GDRIVE_MODEL_FILE_ID"),
+        "preprocessor_config.json": os.getenv("GDRIVE_PREPROCESSOR_FILE_ID"),
         "metadata.json": os.getenv("GDRIVE_METADATA_FILE_ID")
     }
 

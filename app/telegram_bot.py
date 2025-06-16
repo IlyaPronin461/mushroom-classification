@@ -279,7 +279,23 @@ class TelegramBot:
             # Получаем результат из задачи
             predictions = task.get()
 
-            # Формируем ответ с результатами
+            if len(predictions) == 1 and predictions[0]['class_name'] == 'Недостаточная уверенность':
+                warn = predictions[0]
+                warn_msg = (
+                    "⚠️ <b>Я не смог уверенно распознать гриб</b>\n\n"
+                    f"Точность предсказания слишком низкая (<b>{warn['confidence']:.1f}%</b>).\n"
+                    f"{warn['description']}"
+                )
+
+                # Обновляем «🔬 Анализирую…» на предупреждение
+                await message.edit_text(warn_msg, parse_mode=ParseMode.HTML)
+
+                # Кнопка «Назад»
+                keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data='back_to_start')]]
+                await update.message.reply_text("Что дальше?", reply_markup=InlineKeyboardMarkup(keyboard))
+                return
+
+                # Формируем ответ с результатами
             response = "🍄 <b>Результаты анализа:</b>\n\n"
             for i, pred in enumerate(predictions[:5], 1):
                 class_name = pred['class_name']

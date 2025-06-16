@@ -33,8 +33,23 @@ def classify_mushroom_image(self, photo_base64: str):
         predictions = classifier.predict(temp_file_path)
 
         # Формируем результаты
+
+        min_threshold_ = 50
+        top_prediction = predictions[0]
+        if top_prediction['confidence'] < min_threshold_:
+            response = [{
+                'class_name': 'Недостаточная уверенность',
+                'confidence': top_prediction['confidence'],
+                'description': (
+                    "❌ Изображение возможно некорректное или гриб не различим. "
+                    "Попробуйте другое фото или убедитесь в чёткости этого изображения"
+                )
+            }]
+            logging.info("Низкая уверенность предсказания – сформировано предупреждение.")
+            return response
+
         response = []
-        for pred in predictions[:5]:
+        for pred in predictions[:3]:
             class_name = pred['class_name']
             description = settings.mushroom_descriptions.get(
                 class_name,
