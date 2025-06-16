@@ -1,7 +1,6 @@
 mushroom-classification/
 ├── app/
 │   ├── __init__.py
-│   ├── __main__.py
 │   ├── celery_app.py
 │   ├── celery_config.py
 │   ├── config.py
@@ -21,6 +20,5 @@ mushroom-classification/
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
-├── setup.py
 ├── .env
 └── README.md
