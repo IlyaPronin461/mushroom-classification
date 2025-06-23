@@ -21,6 +21,6 @@ mushroom-classification/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env
-├── структура.txt
+├── structure.txt
 ├── ViT.ipynb
 └── README.md
