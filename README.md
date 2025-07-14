@@ -3,7 +3,7 @@
 > [@mushroom_classifier_bot](https://t.me/mushroom_classifier_bot) | Классификация грибов по фото с помощью Vision Transformer, FastAPI и Telegram-бота
 
 **Технологии**:  
-`deep-learning` `pytorch` `transformers`  `vit` `fastapi` `celery` `redis` `postgresql` `docker` `telegram-bot`
+`deep-learning` `pytorch` `transformers`  `vit` `fastapi` `celery` `redis` `postgresql` `docker` `telegram-bot` `git`
 
 ![](https://i.postimg.cc/VvQWfnWy/mushroom-gif.gif)
 
